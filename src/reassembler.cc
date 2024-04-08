@@ -7,15 +7,17 @@ using namespace std;
 void Reassembler::insert( uint64_t first_index, string data, bool is_last_substring )
 {
   // Your code here.
-
   if ( output_.writer().is_closed() )
     return;
+
+  // get an alias
+  const auto out_index = output_.writer().bytes_pushed();
 
   // set end_index
   if ( is_last_substring && end_index_ == 0xffffffff ) {
     end_index_ = first_index + data.size();
     // close the writer
-    if ( out_index_ == end_index_ ) {
+    if ( out_index == end_index_ ) {
       output_.writer().close();
       return;
     }
@@ -28,7 +30,7 @@ void Reassembler::insert( uint64_t first_index, string data, bool is_last_substr
   const auto width = [&] {
     auto p = output_.writer().available_capacity();
     if ( end_index_ != 0xffffffff ) {
-      p = min( p, end_index_ - out_index_ );
+      p = min( p, end_index_ - out_index );
     }
     return p;
   }();
@@ -36,17 +38,17 @@ void Reassembler::insert( uint64_t first_index, string data, bool is_last_substr
     return;
 
   // [out, out + width - 1] comp [first, first + size - 1]
-  if ( first_index > out_index_ + width - 1 )
+  if ( first_index > out_index + width - 1 )
     return;
-  if ( first_index + data.size() - 1 < out_index_ )
+  if ( first_index + data.size() - 1 < out_index )
     return;
-  if ( first_index < out_index_ ) {
-    data = data.substr( out_index_ - first_index, data.size() - ( out_index_ - first_index ) );
-    first_index = out_index_;
+  if ( first_index < out_index ) {
+    data = data.substr( out_index - first_index, data.size() - ( out_index - first_index ) );
+    first_index = out_index;
   }
-  if ( first_index + data.size() - 1 > out_index_ + width - 1 ) {
+  if ( first_index + data.size() - 1 > out_index + width - 1 ) {
     // len = datasize - (first + size - out - wid)
-    data = data.substr( 0, out_index_ + width - first_index );
+    data = data.substr( 0, out_index + width - first_index );
   }
 
   // insert elem to map
@@ -96,15 +98,14 @@ void Reassembler::insert( uint64_t first_index, string data, bool is_last_substr
   }
 
   // can output
-  if ( unassemble_subs_.begin()->first == out_index_ ) {
-    out_index_ += unassemble_subs_.begin()->second.size();
+  if ( unassemble_subs_.begin()->first == out_index ) {
     pending_ -= unassemble_subs_.begin()->second.size();
     output_.writer().push( std::move( unassemble_subs_.begin()->second ) );
     unassemble_subs_.erase( unassemble_subs_.begin() );
   }
 
   // close the writer
-  if ( out_index_ == end_index_ ) {
+  if ( output_.writer().bytes_pushed() == end_index_ ) {
     output_.writer().close();
   }
 }
