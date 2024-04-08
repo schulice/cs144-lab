@@ -15,12 +15,14 @@ bool Writer::is_closed() const
 void Writer::push( string data )
 {
   // Your code here.
+  if ( closed_ )
+    return;
   auto avalcap = available_capacity();
   if ( data.size() > avalcap ) {
-    buffer_ += data.substr( 0, avalcap );
+    buffer_ += std::move( data ).substr( 0, avalcap );
     pushed_ += avalcap;
   } else {
-    buffer_ += data;
+    buffer_ += std::move( data );
     pushed_ += data.size();
   }
   return;
@@ -68,7 +70,7 @@ void Reader::pop( uint64_t len )
   if ( len >= buffer_.size() ) {
     buffer_ = "";
   } else {
-    buffer_ = buffer_.substr( len, buffer_.size() - len );
+    buffer_ = std::move( buffer_ ).substr( len, buffer_.size() - len );
   }
   poped_ += len;
 }

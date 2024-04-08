@@ -1,6 +1,9 @@
 #pragma once
 
 #include "byte_stream.hh"
+#include <cstdint>
+#include <map>
+#include <sys/types.h>
 
 class Reassembler
 {
@@ -42,4 +45,8 @@ public:
 
 private:
   ByteStream output_; // the Reassembler writes to this ByteStream
+  uint64_t out_index_ {};
+  uint64_t pending_ {};
+  uint64_t end_index_ = 0xffffffff;
+  std::map<uint64_t, std::string> unassemble_subs_ {};
 };
