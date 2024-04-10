@@ -12,14 +12,15 @@
 class RetransmissionsTimer
 {
 public:
-  RetransmissionsTimer(uint64_t initial_RTO_ms = 0) : RTO_ms_(initial_RTO_ms) {};
-  void reset_RTO(uint64_t initial_RTO_ms); 
-  void pass(uint64_t passed_ms);
-  bool is_activated(); 
+  RetransmissionsTimer( uint64_t initial_RTO_ms = 0 ) : RTO_ms_( initial_RTO_ms ) {};
+  void reset_RTO( uint64_t initial_RTO_ms );
+  void pass( uint64_t passed_ms );
+  bool is_activated();
   bool is_closed();
   void double_RTO();
-  void reset(); 
+  void reset();
   void close();
+
 private:
   uint64_t tick_ms_ {};
   uint64_t RTO_ms_;
@@ -65,13 +66,12 @@ private:
   Wrap32 isn_;
   uint64_t initial_RTO_ms_;
   RetransmissionsTimer timer_ {};
-  uint64_t receive_index_ {0};
+  uint64_t receive_index_ { 0 };
   uint64_t send_index_ {};
-  uint64_t window_size_ {1};
+  uint64_t window_size_ { 1 };
   uint64_t retransmission_time_ {};
   std::map<uint64_t, TCPSenderMessage> outstanding_seg_ {};
   bool is_initialized_ {};
   bool is_closed_ {};
-  void insert_buffer_(uint64_t index, TCPSenderMessage msg);
+  void insert_buffer_( uint64_t index, TCPSenderMessage msg );
 };
-
