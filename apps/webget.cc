@@ -1,3 +1,4 @@
+#include "tcp_minnow_socket.hh"
 #include "address.hh"
 #include "socket.hh"
 
@@ -13,7 +14,7 @@ using namespace std;
 
 void get_URL( const string& host, const string& path )
 {
-  TCPSocket soc;
+  CS144TCPSocket soc;
   soc.connect( Address( host, "http" ) );
   soc.write( std::format( "GET {} HTTP/1.1\r\n", path ) );
   soc.write( std::format( "Host: {}\r\n", host ) );
