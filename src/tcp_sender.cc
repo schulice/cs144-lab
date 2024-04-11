@@ -82,6 +82,8 @@ void TCPSender::receive( const TCPReceiverMessage& msg )
       else
         break;
     }
+    if ( !outstanding_seg_.empty() && ackno_abs != outstanding_seg_.begin()->first )
+      return;
     receive_index_ = ackno_abs;
     retransmission_time_ = 0;
     if ( sequence_numbers_in_flight() == 0 ) {
