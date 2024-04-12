@@ -1,6 +1,10 @@
 #pragma once
 
+#include <cstdint>
+#include <list>
+#include <memory>
 #include <queue>
+#include <unordered_map>
 
 #include "address.hh"
 #include "ethernet_frame.hh"
@@ -27,6 +31,48 @@
 // the network interface passes it up the stack. If it's an ARP
 // request or reply, the network interface processes the frame
 // and learns or replies as necessary.
+class IP2EthernetLRUList
+{
+private:
+  struct Elem
+  {
+    uint64_t time;
+    EthernetAddress ethaddr;
+    std::unordered_map<uint32_t, std::list<Elem>::iterator>::iterator hashiter;
+  };
+
+public:
+  IP2EthernetLRUList() {};
+  bool contains( uint32_t ip_num );
+  EthernetAddress find( uint32_t ip_num );
+  bool insert( uint32_t ip_num, uint64_t time, const EthernetAddress& address );
+  void outdate( uint64_t time, uint64_t intervel );
+
+private:
+  std::unordered_map<uint32_t, std::list<Elem>::iterator> index_ {};
+  std::list<Elem> lru_list_ {};
+};
+
+class ARPRequestPool
+{
+private:
+  struct Elem
+  {
+    uint64_t time;
+    std::unordered_map<uint32_t, std::list<Elem>::iterator>::iterator hashiter;
+  };
+
+public:
+  ARPRequestPool() {};
+  void outdate( uint64_t time, uint64_t intervel );
+  bool contains( uint32_t ip_num );
+  bool insert( uint32_t ip_num, uint64_t time );
+
+private:
+  std::unordered_map<uint32_t, std::list<Elem>::iterator> index_ {};
+  std::list<Elem> list_ {};
+};
+
 class NetworkInterface
 {
 public:
@@ -81,4 +127,12 @@ private:
 
   // Datagrams that have been received
   std::queue<InternetDatagram> datagrams_received_ {};
+  std::queue<std::pair<Address, InternetDatagram>> datagrams_buffer_ {};
+
+  IP2EthernetLRUList IP2Ethernet_ {};
+  ARPRequestPool apr_pool_ {};
+  uint64_t time_ {};
+
+  // *IPv4* Transmit datagram to ethernet frame
+  EthernetFrame Dgram2frame( const InternetDatagram& dgram );
 };
