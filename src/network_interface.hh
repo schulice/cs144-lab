@@ -53,6 +53,7 @@ private:
   std::list<Elem> lru_list_ {};
 };
 
+// similar to above class, but i have not idea to put map and set to one pattern.
 class ARPRequestPool
 {
 private:
