@@ -64,10 +64,10 @@ void NetworkInterface::send_datagram( const InternetDatagram& dgram, const Addre
       ethheader,
       serialize( aprmsg ),
     };
-    transmit( ethframe );
     apr_pool_.insert( next_hop.ipv4_numeric(), time_ );
     // add it to quene
     datagrams_buffer_.push( std::pair( next_hop, dgram ) );
+    transmit( ethframe );
   }
 }
 
@@ -97,17 +97,16 @@ void NetworkInterface::recv_frame( const EthernetFrame& frame )
       const auto ip = datagrams_buffer_.front().first;
       if ( !IP2Ethernet_.contains( ip.ipv4_numeric() ) )
         break;
-      EthernetHeader ethheader {
-        IP2Ethernet_.find( ip.ipv4_numeric() ),
-        ethernet_address_,
-        EthernetHeader::TYPE_IPv4,
-      };
       EthernetFrame ethframe {
-        ethheader,
+        EthernetHeader {
+          IP2Ethernet_.find( ip.ipv4_numeric() ),
+          ethernet_address_,
+          EthernetHeader::TYPE_IPv4,
+        },
         serialize( datagrams_buffer_.front().second ),
       };
-      transmit( ethframe );
       datagrams_buffer_.pop();
+      transmit( ethframe );
     }
 
     if ( !( frame.header.dst == ethernet_address_ || frame.header.dst == ETHERNET_BROADCAST ) )
@@ -121,13 +120,8 @@ void NetworkInterface::recv_frame( const EthernetFrame& frame )
       response.target_ethernet_address = aprmsg.sender_ethernet_address;
       response.target_ip_address = aprmsg.sender_ip_address;
 
-      const EthernetHeader ethheader {
-        frame.header.src,
-        ethernet_address_,
-        EthernetHeader::TYPE_ARP,
-      };
       const EthernetFrame response_frame {
-        ethheader,
+        EthernetHeader { frame.header.src, ethernet_address_, EthernetHeader::TYPE_ARP },
         serialize( response ),
       };
       transmit( response_frame );
