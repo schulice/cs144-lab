@@ -42,8 +42,8 @@ void TCPSender::push( const TransmitFunction& transmit )
     if ( msg.sequence_length() == 0 )
       return; // assert
     // actually send payload
-    transmit( msg );
     insert_buffer_( send_index_, msg );
+    transmit( msg );
     if ( timer_.is_closed() ) {
       timer_.reset();
       timer_.reset_RTO( initial_RTO_ms_ );
@@ -76,14 +76,14 @@ void TCPSender::receive( const TCPReceiverMessage& msg )
   // sendindex relative to isn_, and 0 preserve for SYN
   const auto ackno_abs = msg.ackno->unwrap( isn_, receive_index_ );
   if ( ackno_abs > receive_index_ && send_index_ >= ackno_abs ) {
-    for ( auto i = outstanding_seg_.begin(); i != outstanding_seg_.end(); ) {
-      if ( ackno_abs >= i->first + i->second.sequence_length() )
-        i = outstanding_seg_.erase( i );
-      else
+    auto i = outstanding_seg_.begin();
+    for ( ; i != outstanding_seg_.end(); i ++) {
+      if ( ackno_abs < i->first + i->second.sequence_length() )
         break;
     }
-    if ( !outstanding_seg_.empty() && ackno_abs != outstanding_seg_.begin()->first )
+    if ( i != outstanding_seg_.end() && ackno_abs != i->first)
       return;
+    outstanding_seg_.erase(outstanding_seg_.begin(), i);
     receive_index_ = ackno_abs;
     retransmission_time_ = 0;
     if ( sequence_numbers_in_flight() == 0 ) {
