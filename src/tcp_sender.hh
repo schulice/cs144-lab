@@ -66,8 +66,9 @@ private:
   Wrap32 isn_;
   uint64_t initial_RTO_ms_;
   RetransmissionsTimer timer_ {};
-  uint64_t receive_index_ { 0 };
+  uint64_t receive_index_ {};
   uint64_t send_index_ {};
+  // Before receive the windows size from receiver, we assume that it have space to receive SYN
   uint64_t window_size_ { 1 };
   uint64_t retransmission_time_ {};
   std::map<uint64_t, TCPSenderMessage> outstanding_seg_ {};

@@ -21,8 +21,7 @@ uint64_t TCPSender::consecutive_retransmissions() const
 void TCPSender::push( const TransmitFunction& transmit )
 {
   // Your code here.
-  uint64_t start = 0;
-  const auto window_size = max( window_size_, (uint64_t)1 );
+  const auto window_size = max( window_size_, static_cast<uint64_t>( 1 ) );
   while ( sequence_numbers_in_flight() < window_size ) {
     const auto s = input_.reader().peek();
     auto msg = make_empty_message();
@@ -31,17 +30,21 @@ void TCPSender::push( const TransmitFunction& transmit )
       is_initialized_ = true;
     }
     const auto payload_size = [&]() {
-      const auto payload_upper_size
-        = (uint64_t)min( window_size - sequence_numbers_in_flight(), TCPConfig::MAX_PAYLOAD_SIZE );
-      return (uint64_t)min( payload_upper_size - msg.sequence_length(), s.size() - start );
+      const auto windows_free_space
+        = static_cast<uint64_t>( min( window_size - sequence_numbers_in_flight(), TCPConfig::MAX_PAYLOAD_SIZE ) );
+      const auto payload_upper = windows_free_space - msg.sequence_length();
+      return static_cast<uint64_t>( min( payload_upper, s.size() ) );
     }();
     msg.payload = s.substr( 0, payload_size );
     input_.reader().pop( payload_size );
-    if ( input_.reader().is_finished() && window_size > sequence_numbers_in_flight() + payload_size && !is_closed_ )
-      msg.FIN = true, is_closed_ = true;
+    if ( !is_closed_ && input_.reader().is_finished()
+         && window_size > sequence_numbers_in_flight() + msg.sequence_length() ) {
+      msg.FIN = true;
+      is_closed_ = true;
+    }
+    // nothing need to be send
     if ( msg.sequence_length() == 0 )
-      return; // assert
-    // actually send payload
+      break;
     insert_buffer_( send_index_, msg );
     transmit( msg );
     if ( timer_.is_closed() ) {
@@ -75,23 +78,21 @@ void TCPSender::receive( const TCPReceiverMessage& msg )
   }
   // sendindex relative to isn_, and 0 preserve for SYN
   const auto ackno_abs = msg.ackno->unwrap( isn_, receive_index_ );
-  if ( ackno_abs > receive_index_ && send_index_ >= ackno_abs ) {
-    auto i = outstanding_seg_.begin();
-    for ( ; i != outstanding_seg_.end(); i ++) {
-      if ( ackno_abs < i->first + i->second.sequence_length() )
-        break;
-    }
-    if ( i != outstanding_seg_.end() && ackno_abs != i->first)
-      return;
-    outstanding_seg_.erase(outstanding_seg_.begin(), i);
-    receive_index_ = ackno_abs;
-    retransmission_time_ = 0;
-    if ( sequence_numbers_in_flight() == 0 ) {
-      timer_.close();
-    } else {
-      timer_.reset_RTO( initial_RTO_ms_ );
-      timer_.reset();
-    }
+  if ( ackno_abs <= receive_index_ || ackno_abs > send_index_ ) {
+    return;
+  }
+  auto i = outstanding_seg_.begin();
+  while ( i != outstanding_seg_.end() && i->first + i->second.sequence_length() <= ackno_abs ) {
+    i++;
+  }
+  outstanding_seg_.erase( outstanding_seg_.begin(), i );
+  receive_index_ = ackno_abs;
+  retransmission_time_ = 0;
+  if ( sequence_numbers_in_flight() == 0 ) {
+    timer_.close();
+  } else {
+    timer_.reset_RTO( initial_RTO_ms_ );
+    timer_.reset();
   }
 }
 
@@ -100,12 +101,11 @@ void TCPSender::tick( uint64_t ms_since_last_tick, const TransmitFunction& trans
   // Your code here.
   timer_.pass( ms_since_last_tick );
   if ( timer_.is_activated() ) {
-    if ( window_size_ == 0 && !is_initialized_ ) {
-      transmit( make_empty_message() );
-    } else if ( !outstanding_seg_.empty() ) {
+    if ( !outstanding_seg_.empty() && retransmission_time_ < TCPConfig::TIMEOUT_DFLT) {
       transmit( outstanding_seg_.begin()->second );
-      if ( window_size_ != 0 )
+      if ( window_size_ != 0) {
         timer_.double_RTO();
+      }
       ++retransmission_time_;
     }
   };
